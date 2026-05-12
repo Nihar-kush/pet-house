@@ -1,19 +1,40 @@
-import type { ReactNode } from "react";
+import { Children, useMemo, type ReactNode } from "react";
 import styled from "styled-components";
+import { useColumnCount } from "../hooks/useColumnCount";
 
-const Grid = styled.div`
-  column-count: 4;
-  column-gap: ${({ theme }) => theme.space.md};
+const MasonryWrapper = styled.div`
+  display: flex;
+  width: 100%;
+  gap: ${({ theme }) => theme.space.md};
+  align-items: flex-start;
+`;
 
-  @media (max-width: 1024px) {
-    column-count: 2;
-  }
-
-  @media (max-width: 620px) {
-    column-count: 1;
-  }
+const MasonryColumn = styled.div`
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  gap: ${({ theme }) => theme.space.md};
 `;
 
 export function MasonryLayout({ children }: { children: ReactNode }) {
-  return <Grid>{children}</Grid>;
+  const columns = useColumnCount();
+
+  const columnContents = useMemo(() => {
+    const result: ReactNode[][] = Array.from({ length: columns }, () => []);
+
+    Children.forEach(children, (child, index) => {
+      result[index % columns].push(child);
+    });
+
+    return result;
+  }, [children, columns]);
+
+  return (
+    <MasonryWrapper>
+      {columnContents.map((column, colIndex) => (
+        <MasonryColumn key={colIndex}>{column}</MasonryColumn>
+      ))}
+    </MasonryWrapper>
+  );
 }

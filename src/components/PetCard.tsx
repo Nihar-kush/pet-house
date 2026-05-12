@@ -15,7 +15,7 @@ const Card = styled.article`
   position: relative;
   display: inline-block;
   width: 100%;
-  margin: 0 0 ${({ theme }) => theme.space.md};
+  margin: 0;
   break-inside: avoid;
   overflow: hidden;
   border-radius: ${({ theme }) => theme.radii.md};
@@ -188,9 +188,7 @@ export function PetCard({
   onToggleSelection,
   onDownload,
 }: PetCardProps) {
-  const handlePointerUp = (
-    event: PointerEvent<HTMLButtonElement>,
-  ) => {
+  const handlePointerUp = (event: PointerEvent<HTMLButtonElement>) => {
     // Drop button focus after pointer taps so the hover overlay does not linger.
     event.currentTarget.blur();
   };

@@ -201,24 +201,10 @@ const pulse = keyframes`
   }
 `;
 
-const SkeletonGrid = styled.div`
-  column-count: 4;
-  column-gap: ${({ theme }) => theme.space.md};
-
-  @media (max-width: 1024px) {
-    column-count: 2;
-  }
-
-  @media (max-width: 620px) {
-    column-count: 1;
-  }
-`;
-
 const SkeletonCard = styled.div<{ $height: number }>`
-  display: inline-block;
+  display: block;
   width: 100%;
   height: ${({ $height }) => $height}px;
-  margin-bottom: ${({ theme }) => theme.space.md};
   border-radius: ${({ theme }) => theme.radii.md};
   background: ${({ theme }) => theme.colors.surfaceStrong};
   animation: ${pulse} 1.25s ease-in-out infinite;
@@ -448,11 +434,11 @@ export function Home() {
 
       <ResultsStage $minHeight={stageMinHeight}>
         {isLoading ? (
-          <SkeletonGrid aria-label="Loading pet cards">
+          <MasonryLayout>
             {[260, 340, 290, 420, 310, 360, 280, 390].map((height, index) => (
               <SkeletonCard key={`${height}-${index}`} $height={height} />
             ))}
-          </SkeletonGrid>
+          </MasonryLayout>
         ) : null}
 
         {isError ? (

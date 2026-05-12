@@ -17,20 +17,6 @@ const initialState: UsePetsState = {
 
 let cachedPets: Pet[] | null = null;
 let pendingPetsRequest: Promise<Pet[]> | null = null;
-const preloadedImageUrls = new Set<string>();
-
-function preloadPetImages(pets: Pet[]) {
-  pets.forEach((pet) => {
-    if (preloadedImageUrls.has(pet.url)) {
-      return;
-    }
-
-    preloadedImageUrls.add(pet.url);
-    const image = new Image();
-    image.decoding = "async";
-    image.src = pet.url;
-  });
-}
 
 async function loadCachedPets() {
   // Keep one shared in-memory request so route changes do not kick off duplicate fetches.
@@ -38,10 +24,13 @@ async function loadCachedPets() {
     return cachedPets;
   }
 
-  pendingPetsRequest ??= fetchPets().then((rawPets) => {
+  pendingPetsRequest ??= (async () => {
+    const rawPets = await fetchPets();
     cachedPets = normalizePets(rawPets);
-    preloadPetImages(cachedPets);
     return cachedPets;
+  })().catch((error: unknown) => {
+    pendingPetsRequest = null;
+    throw error;
   });
 
   return pendingPetsRequest;
@@ -75,36 +64,53 @@ export function usePets() {
         error: null,
       });
 
-      // Fill in real file sizes after first paint so the gallery can render immediately.
-      void Promise.all(
-        pets.map(async (pet) => {
-          let sizeBytes: number | null = null;
+      void (async () => {
+        const sizeUpdates = await Promise.all(
+          pets.map(async (pet) => {
+            try {
+              const sizeBytes = await fetchImageSize(pet.url);
+              return sizeBytes ? { id: pet.id, sizeBytes } : null;
+            } catch {
+              return null;
+            }
+          }),
+        );
+        const sizeById = new Map(
+          sizeUpdates
+            .filter(
+              (update): update is { id: string; sizeBytes: number } =>
+                update !== null,
+            )
+            .map((update) => [update.id, update.sizeBytes]),
+        );
 
-          try {
-            sizeBytes = await fetchImageSize(pet.url);
-          } catch {
-            sizeBytes = null;
-          }
+        if (sizeById.size === 0) {
+          return;
+        }
 
-          if (!sizeBytes) {
-            return;
-          }
-
-          setState((currentState) => ({
-            ...currentState,
-            pets: currentState.pets.map((currentPet) =>
-              currentPet.id === pet.id
-                ? { ...currentPet, sizeBytes, sizeSource: "remote" }
-                : currentPet,
-            ),
-          }));
-          cachedPets = cachedPets?.map((currentPet) =>
-            currentPet.id === pet.id
-              ? { ...currentPet, sizeBytes, sizeSource: "remote" }
+        setState((currentState) => ({
+          ...currentState,
+          pets: currentState.pets.map((currentPet) =>
+            sizeById.has(currentPet.id)
+              ? {
+                  ...currentPet,
+                  sizeBytes: sizeById.get(currentPet.id) ?? currentPet.sizeBytes,
+                  sizeSource: "remote",
+                }
               : currentPet,
-          ) ?? null;
-        }),
-      );
+          ),
+        }));
+
+        cachedPets = pets.map((currentPet) =>
+          sizeById.has(currentPet.id)
+            ? {
+                ...currentPet,
+                sizeBytes: sizeById.get(currentPet.id) ?? currentPet.sizeBytes,
+                sizeSource: "remote",
+              }
+            : currentPet,
+        ) ?? null;
+      })();
     } catch (error) {
       setState({
         pets: [],
